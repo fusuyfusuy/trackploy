@@ -11,7 +11,7 @@ class DokployClient:
 
     name = "dokploy"
 
-    def __init__(self, base_url: str = "https://dokploy.bogazici.app", api_key: str = ""):
+    def __init__(self, base_url: str = "", api_key: str = ""):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 

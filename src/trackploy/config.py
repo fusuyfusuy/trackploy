@@ -7,27 +7,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
-DEFAULT_REPO_TO_STACK_MAP = {
-    "boun-scrape": "scraper",
-    "fusuycorp/boun-scrape": "scraper",
-    "hepyeni": "hepyeni",
-    "fusuycorp/hepyeni": "hepyeni",
-    "3d-filament-finder": "filament",
-    "fusuycorp/3d-filament-finder": "filament",
-    "uniyok-atlas": "uni-tercih",
-    "fusuycorp/uniyok-atlas": "uni-tercih",
-    "yokatlas-scrape": "uni-tercih",
-    "fusuycorp/yokatlas-scrape": "uni-tercih",
-    "bountools": "bountools",
-    "fusuycorp/bountools": "bountools",
-    "geriden.com": "geriden-v2-stack",
-    "fusuycorp/geriden.com": "geriden-v2-stack",
-    "beszel": "beszel-hub",
-    "fusuycorp/beszel": "beszel-hub",
-    "nextcloud": "nextcloud",
-    "umami": "umami",
-}
-
+DEFAULT_REPO_TO_STACK_MAP: dict[str, str] = {}
 DEFAULT_SELFHOSTED_ENV_PATH = Path.home() / "deployment" / "selfhosted" / ".env"
 DEFAULT_CONFIG_PATH = Path.home() / ".config" / "trackploy" / "config.json"
 
@@ -52,7 +32,7 @@ def _parse_env_file(filepath: Path) -> dict[str, str]:
 
 class TrackployConfig(BaseModel):
     """Main configuration model for trackploy."""
-    dokploy_url: str = "https://dokploy.bogazici.app"
+    dokploy_url: str = "https://dokploy.example.com"
     dokploy_key: str = ""
     github_token: Optional[str] = None
     smee_url: Optional[str] = None
@@ -177,27 +157,33 @@ class TrackployConfig(BaseModel):
             cwd_slug = cls._extract_git_remote_slug(cwd / ".git") or cwd.name
             _add_repo(cwd_slug)
 
-        # 2. Inspect standard workspace folders
-        base_dirs = [
-            Path.home() / "projects" / "fusuycorp",
-            Path.home() / "projects" / "fusuyfusuy",
+        # 2. Inspect standard developer workspace folders
+        candidate_roots = [
             Path.home() / "projects",
+            Path.home() / "work",
+            Path.home() / "dev",
+            Path.home() / "src",
+            Path.home() / "repos",
         ]
 
-        for base_dir in base_dirs:
-            if not base_dir.exists() or not base_dir.is_dir():
+        for root in candidate_roots:
+            if not root.exists() or not root.is_dir():
                 continue
-            for entry in base_dir.iterdir():
+            for entry in root.iterdir():
                 if not entry.is_dir():
                     continue
-                git_dir = entry / ".git"
-                if git_dir.exists():
-                    slug = cls._extract_git_remote_slug(git_dir)
-                    if slug:
-                        _add_repo(slug)
-                    elif base_dir.name in ("fusuycorp", "fusuyfusuy"):
-                        _add_repo(f"{base_dir.name}/{entry.name}")
-                    else:
-                        _add_repo(entry.name)
+                # If entry itself is a git repo
+                if (entry / ".git").exists():
+                    slug = cls._extract_git_remote_slug(entry / ".git") or entry.name
+                    _add_repo(slug)
+                else:
+                    # Check 1 level deeper (e.g. ~/projects/org/repo)
+                    try:
+                        for subentry in entry.iterdir():
+                            if subentry.is_dir() and (subentry / ".git").exists():
+                                slug = cls._extract_git_remote_slug(subentry / ".git") or f"{entry.name}/{subentry.name}"
+                                _add_repo(slug)
+                    except Exception:
+                        pass
 
         return discovered

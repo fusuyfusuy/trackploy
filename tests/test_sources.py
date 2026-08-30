@@ -10,7 +10,7 @@ from trackploy.sources.github_api import GitHubApiClient
 
 @pytest.mark.asyncio
 async def test_dokploy_client_get_projects():
-    with respx.mock(base_url="https://dokploy.bogazici.app") as mock:
+    with respx.mock(base_url="https://dokploy.example.com") as mock:
         mock.get("/api/project.all").respond(
             status_code=200,
             json=[
@@ -28,7 +28,7 @@ async def test_dokploy_client_get_projects():
             ],
         )
 
-        client = DokployClient(api_key="test-key")
+        client = DokployClient(base_url="https://dokploy.example.com", api_key="test-key")
         projects = await client.get_projects()
         assert len(projects) == 1
         assert projects[0]["name"] == "boun-uni"
@@ -36,7 +36,7 @@ async def test_dokploy_client_get_projects():
 
 @pytest.mark.asyncio
 async def test_dokploy_client_get_compose_app():
-    with respx.mock(base_url="https://dokploy.bogazici.app") as mock:
+    with respx.mock(base_url="https://dokploy.example.com") as mock:
         mock.get("/api/compose.one").respond(
             status_code=200,
             json={
@@ -56,7 +56,7 @@ async def test_dokploy_client_get_compose_app():
             },
         )
 
-        client = DokployClient(api_key="test-key")
+        client = DokployClient(base_url="https://dokploy.example.com", api_key="test-key")
         app = await client.get_compose_app("id-123")
         assert app is not None
         assert app.name == "scraper"

@@ -17,7 +17,7 @@ async def test_polling_engine_lifecycle(tmp_path: Path, monkeypatch: pytest.Monk
 
     cfg = TrackployConfig(
         dokploy_key="test-key",
-        dokploy_url="https://dokploy.bogazici.app",
+        dokploy_url="https://dokploy.example.com",
         tracked_repos=["fusuycorp/boun-scrape"],
         github_use_cli_first=False,  # Force REST client for mocking in tests
     )
@@ -26,7 +26,7 @@ async def test_polling_engine_lifecycle(tmp_path: Path, monkeypatch: pytest.Monk
 
     with respx.mock(assert_all_called=False) as mock:
         # Dokploy mocks
-        mock.get("https://dokploy.bogazici.app/api/project.all").respond(
+        mock.get("https://dokploy.example.com/api/project.all").respond(
             status_code=200,
             json=[
                 {
@@ -42,7 +42,7 @@ async def test_polling_engine_lifecycle(tmp_path: Path, monkeypatch: pytest.Monk
                 }
             ],
         )
-        mock.get("https://dokploy.bogazici.app/api/compose.one").respond(
+        mock.get("https://dokploy.example.com/api/compose.one").respond(
             status_code=200,
             json={
                 "name": "scraper",

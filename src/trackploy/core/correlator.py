@@ -46,8 +46,12 @@ class PipelineCorrelator:
             app_tokens = set(app_name.replace("-", " ").replace("_", " ").split())
             if repo_base in app_name or app_name in repo_base:
                 return app
-            if repo_tokens and app_tokens and (repo_tokens & app_tokens):
-                return app
+            if repo_tokens and app_tokens:
+                if repo_tokens & app_tokens:
+                    return app
+                for rt in repo_tokens:
+                    if len(rt) >= 4 and any(rt in at or at in rt for at in app_tokens if len(at) >= 4):
+                        return app
 
         return None
 
