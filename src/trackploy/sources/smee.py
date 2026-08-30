@@ -213,7 +213,9 @@ class SmeeClient:
                                         payload = json.loads(raw_data)
                                         headers_dict = payload.get("headers", {})
                                         gh_event = (
-                                            headers_dict.get("x-github-event")
+                                            payload.get("x-github-event")
+                                            or payload.get("X-GitHub-Event")
+                                            or headers_dict.get("x-github-event")
                                             or headers_dict.get("X-GitHub-Event")
                                             or payload.get("event")
                                             or event_type
