@@ -53,15 +53,25 @@ class SmeeClient:
 
         # 1. PUSH EVENT
         if event_name == "push":
+            # Ignore branch deletions (e.g. 0000000000000000000000000000000000000000)
+            if body.get("deleted") is True or body.get("after") == "0000000000000000000000000000000000000000":
+                return None, None, None
+
             repo = body.get("repository", {}).get("full_name") or "unknown"
             ref = body.get("ref", "")
-            branch = ref.removeprefix("refs/heads/") if ref.startswith("refs/heads/") else (ref or "default")
+            is_tag = ref.startswith("refs/tags/")
+            if is_tag:
+                branch = ref.removeprefix("refs/tags/")
+            else:
+                branch = ref.removeprefix("refs/heads/") if ref.startswith("refs/heads/") else (ref or "default")
+
             sender = body.get("sender", {}).get("login") or body.get("pusher", {}).get("name") or "unknown"
 
             head_commit = body.get("head_commit") or {}
             commits = body.get("commits") or []
             head_sha = (head_commit.get("id") or body.get("after") or body.get("head") or "")[:7]
-            message = (head_commit.get("message") or (commits[-1].get("message") if commits else f"Push to {branch}")).split("\n")[0]
+            prefix = f"Tag {branch}" if is_tag else f"Push to {branch}"
+            message = (head_commit.get("message") or (commits[-1].get("message") if commits else prefix)).split("\n")[0]
             author = head_commit.get("author", {}).get("name") or sender
             url = head_commit.get("url") or body.get("compare")
 
@@ -75,11 +85,12 @@ class SmeeClient:
                 url=url,
             )
 
+            evt_title = f"Tag {branch} pushed to {repo}" if is_tag else f"Push to {repo} ({branch})"
             evt = TrackployEvent(
                 event_type=EventType.PUSH,
                 source="github",
                 target=repo,
-                title=f"Push to {repo} ({branch})",
+                title=evt_title,
                 summary=f"[{commit.sha}] {commit.message} by {commit.author}",
                 sha=commit.sha,
                 branch=branch,
@@ -192,7 +203,9 @@ class SmeeClient:
         backoff = 2.0
         while True:
             try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(connect=15.0, read=None, write=15.0, pool=15.0)) as client:
+                # 60s read timeout acts as a dead-socket watchdog if Smee keepalive pings cease
+                timeout = httpx.Timeout(connect=15.0, read=60.0, write=15.0, pool=15.0)
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     async with client.stream("GET", self.smee_url, headers=headers) as response:
                         if response.status_code != 200:
                             await asyncio.sleep(backoff)

@@ -231,7 +231,6 @@ def test_smee_client_parse_workflow_run_webhook():
             "run_number": 42,
         },
     }
-
     commit, run, evt = client.parse_webhook_payload("workflow_run", payload)
     assert commit is None
     assert run is not None
@@ -243,5 +242,34 @@ def test_smee_client_parse_workflow_run_webhook():
     assert evt.event_type == EventType.ACTION_COMPLETED
     assert evt.target == "fusuycorp/boun-scrape"
     assert evt.duration_seconds == 90
+
+
+def test_smee_client_tag_push_and_deletion():
+    from trackploy.sources.smee import SmeeClient
+
+    client = SmeeClient("https://smee.io/test1234")
+
+    # Tag push
+    tag_payload = {
+        "repository": {"full_name": "fusuyfusuy/trackploy"},
+        "ref": "refs/tags/v0.2.0",
+        "head_commit": {"id": "abcdef123", "message": "Release v0.2.0", "author": {"name": "Dev"}},
+    }
+    c_tag, _, evt_tag = client.parse_webhook_payload("push", tag_payload)
+    assert c_tag is not None
+    assert c_tag.branch == "v0.2.0"
+    assert evt_tag is not None
+    assert evt_tag.title == "Tag v0.2.0 pushed to fusuyfusuy/trackploy"
+
+    # Branch deletion (after == 0000000000000000000000000000000000000000)
+    del_payload = {
+        "repository": {"full_name": "fusuyfusuy/trackploy"},
+        "ref": "refs/heads/feature/old",
+        "deleted": True,
+        "after": "0000000000000000000000000000000000000000",
+    }
+    c_del, _, evt_del = client.parse_webhook_payload("push", del_payload)
+    assert c_del is None
+    assert evt_del is None
 
 
