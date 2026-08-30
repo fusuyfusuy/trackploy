@@ -80,7 +80,17 @@ class TrackployConfig(BaseModel):
         """Load configuration hierarchically: Defaults -> .env -> config file -> env vars -> overrides."""
         data: dict[str, Any] = {}
 
-        # 1. Read selfhosted .env
+        # 1. Read global config file
+        cfg_file = config_path or DEFAULT_CONFIG_PATH
+        if cfg_file.exists():
+            try:
+                with open(cfg_file, "r", encoding="utf-8") as f:
+                    file_data = json.load(f)
+                    data.update(file_data)
+            except Exception:
+                pass
+
+        # 2. Read selfhosted / project .env
         target_env = env_path or DEFAULT_SELFHOSTED_ENV_PATH
         env_vars = _parse_env_file(target_env)
         if "DOKPLOY_KEY" in env_vars:
@@ -91,16 +101,6 @@ class TrackployConfig(BaseModel):
             data["dokploy_url"] = env_vars["DOKPLOY_URL"]
         if "SMEE_URL" in env_vars:
             data["smee_url"] = env_vars["SMEE_URL"]
-
-        # 2. Read explicit config file
-        cfg_file = config_path or DEFAULT_CONFIG_PATH
-        if cfg_file.exists():
-            try:
-                with open(cfg_file, "r", encoding="utf-8") as f:
-                    file_data = json.load(f)
-                    data.update(file_data)
-            except Exception:
-                pass
 
         # 3. Environment variable overrides
         if os.environ.get("DOKPLOY_KEY"):

@@ -26,6 +26,19 @@ class SmeeClient:
     def __init__(self, smee_url: str):
         self.smee_url = smee_url.rstrip("/")
 
+    @staticmethod
+    async def create_channel() -> str:
+        """Provision a fresh Smee.io webhook channel URL."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.get("https://smee.io/new", follow_redirects=False)
+                loc = res.headers.get("location")
+                if loc:
+                    return loc if loc.startswith("http") else f"https://smee.io{loc}"
+        except Exception:
+            pass
+        return "https://smee.io"
+
     def is_available(self) -> bool:
         """True if a valid HTTP/HTTPS Smee channel URL is provided."""
         return bool(self.smee_url and self.smee_url.startswith("http"))

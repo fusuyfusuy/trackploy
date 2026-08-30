@@ -363,3 +363,35 @@ class GitHubCliClient:
             "--log-failed",
         ], timeout=15.0)
         return out if code == 0 and out.strip() else None
+
+    async def list_repo_webhooks(self, repo: str) -> list[dict]:
+        """List active webhooks for a repository."""
+        code, out, _ = await self._run_command(["api", f"repos/{repo}/hooks"])
+        if code == 0 and out.strip():
+            try:
+                return json.loads(out)
+            except Exception:
+                pass
+        return []
+
+    async def create_repo_webhook(self, repo: str, webhook_url: str) -> tuple[bool, str]:
+        """Create a push and workflow_run webhook on a repository."""
+        # Check if already exists
+        hooks = await self.list_repo_webhooks(repo)
+        for h in hooks:
+            cfg = h.get("config", {})
+            if cfg.get("url", "").rstrip("/") == webhook_url.rstrip("/"):
+                return True, "Webhook already registered"
+
+        code, out, err = await self._run_command([
+            "api", f"repos/{repo}/hooks",
+            "-f", "name=web",
+            "-F", "active=true",
+            "-F", "events[]=push",
+            "-F", "events[]=workflow_run",
+            "-f", f"config[url]={webhook_url}",
+            "-f", "config[content_type]=json",
+        ])
+        if code == 0:
+            return True, "Webhook successfully created"
+        return False, err.strip() or out.strip()
