@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Testing & linting caches
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# Environment files & secrets
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.token
+
+# System files
+.DS_Store
