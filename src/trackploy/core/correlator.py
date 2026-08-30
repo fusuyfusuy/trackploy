@@ -28,7 +28,9 @@ class PipelineCorrelator:
         """Find the matching ComposeApp from a list of Dokploy apps for a repo."""
         target_stack = self.get_stack_for_repo(repo)
         repo_base = repo.split("/")[-1].lower()
+        repo_tokens = set(repo_base.replace("-", " ").replace("_", " ").split())
 
+        # 1. Exact or configured match
         for app in apps:
             app_name = app.name.lower()
             if target_stack and app_name == target_stack.lower():
@@ -36,6 +38,15 @@ class PipelineCorrelator:
             if app_name == repo_base:
                 return app
             if app.app_name and target_stack and target_stack.lower() in app.app_name.lower():
+                return app
+
+        # 2. Dynamic substring / token overlap match
+        for app in apps:
+            app_name = app.name.lower()
+            app_tokens = set(app_name.replace("-", " ").replace("_", " ").split())
+            if repo_base in app_name or app_name in repo_base:
+                return app
+            if repo_tokens and app_tokens and (repo_tokens & app_tokens):
                 return app
 
         return None

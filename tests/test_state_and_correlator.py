@@ -219,3 +219,33 @@ def test_console_notifier_status_table():
     assert "CI/CD (Last 2h)" in output
     assert "Dokploy Swarm Stacks" in output
 
+
+def test_pipeline_correlator_dynamic_matching():
+    # Empty static mapping -> matches dynamically based on normalized tokens
+    correlator = PipelineCorrelator({})
+    apps = [
+        ComposeApp(
+            compose_id="comp-takecare",
+            name="takecare",
+            project_name="health",
+            compose_status=DokployStatus.DONE,
+        ),
+        ComposeApp(
+            compose_id="comp-filament",
+            name="filament-finder",
+            project_name="tools",
+            compose_status=DokployStatus.DONE,
+        ),
+    ]
+
+    # Exact name match
+    m1 = correlator.match_app_for_repo("fusuycorp/takecare", apps)
+    assert m1 is not None
+    assert m1.compose_id == "comp-takecare"
+
+    # Token overlap match ("3d-filament-finder" matches "filament-finder")
+    m2 = correlator.match_app_for_repo("fusuycorp/3d-filament-finder", apps)
+    assert m2 is not None
+    assert m2.compose_id == "comp-filament"
+
+

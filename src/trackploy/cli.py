@@ -19,6 +19,7 @@ console = Console()
 @click.group(invoke_without_command=True)
 @click.option("--key", "-k", help="Dokploy API Key")
 @click.option("--url", "-u", help="Dokploy Base URL")
+@click.option("--smee", "-s", help="Smee.io Webhook Channel URL (e.g. https://smee.io/xyz)")
 @click.option("--repo", "-r", "repos", multiple=True, help="Specific GitHub repos to track (e.g. fusuycorp/boun-scrape)")
 @click.option("--active-interval", "-a", type=float, default=None, help="Polling interval during active runs/deployments (seconds)")
 @click.option("--idle-interval", "-i", type=float, default=None, help="Polling interval during idle periods (seconds)")
@@ -30,6 +31,7 @@ def main(
     ctx: click.Context,
     key: Optional[str],
     url: Optional[str],
+    smee: Optional[str],
     repos: tuple[str, ...],
     active_interval: Optional[float],
     idle_interval: Optional[float],
@@ -41,6 +43,7 @@ def main(
     config = TrackployConfig.load(
         dokploy_key=key,
         dokploy_url=url,
+        smee_url=smee,
         repos=list(repos) if repos else None,
         history_window_hours=since_hours,
     )
@@ -91,9 +94,11 @@ def watch(config: TrackployConfig):
         enable_desktop=config.enable_desktop_notifications,
     )
 
+    smee_info = f"[dim]Smee Webhook:[/dim] [green]{config.smee_url}[/green]\n" if config.smee_url else ""
     console.print(Panel.fit(
         f"[bold bright_white]Trackploy Continuous Monitor[/bold bright_white]\n"
         f"[dim]Dokploy URL:[/dim] [cyan]{config.dokploy_url}[/cyan]\n"
+        f"{smee_info}"
         f"[dim]Tracked Repos ({len(config.tracked_repos)}):[/dim] {', '.join(config.tracked_repos[:4])}{'...' if len(config.tracked_repos) > 4 else ''}\n"
         f"[dim]Intervals:[/dim] Active: {config.active_interval_seconds}s | Idle: {config.idle_interval_seconds}s\n"
         f"[dim]OSC Notifications:[/dim] {'Enabled' if config.enable_osc_notifications else 'Disabled'} | [dim]Bell:[/dim] {'Enabled' if config.enable_bell else 'Disabled'}\n"

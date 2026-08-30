@@ -161,3 +161,87 @@ async def test_github_api_client_latest_commits_fallback():
         assert commits[0].branch == "default"
         assert commits[0].message == "Initial commit"
 
+
+def test_sources_protocol_compliance():
+    from trackploy.sources.base import CiSource, DeploySource
+    from trackploy.sources.github_api import GitHubApiClient
+    from trackploy.sources.github_cli import GitHubCliClient
+    from trackploy.sources.dokploy import DokployClient
+
+    gh_api = GitHubApiClient(token="t")
+    gh_cli = GitHubCliClient()
+    dokploy = DokployClient(api_key="k")
+
+    assert isinstance(gh_api, CiSource)
+    assert isinstance(gh_cli, CiSource)
+    assert isinstance(dokploy, DeploySource)
+
+
+def test_smee_client_parse_push_webhook():
+    from trackploy.sources.smee import SmeeClient
+    from trackploy.models import EventType
+
+    client = SmeeClient("https://smee.io/test1234")
+    assert client.is_available() is True
+
+    payload = {
+        "repository": {"full_name": "fusuyfusuy/trackploy"},
+        "ref": "refs/heads/feature/smee-events",
+        "sender": {"login": "devhax"},
+        "head_commit": {
+            "id": "112233445566",
+            "message": "Add Smee.io SSE client",
+            "author": {"name": "Dev Hax"},
+            "url": "https://github.com/fusuyfusuy/trackploy/commit/11223344",
+        },
+    }
+
+    commit, run, evt = client.parse_webhook_payload("push", payload)
+    assert commit is not None
+    assert commit.repo == "fusuyfusuy/trackploy"
+    assert commit.branch == "feature/smee-events"
+    assert commit.sha == "1122334"
+    assert commit.author == "Dev Hax"
+    assert commit.message == "Add Smee.io SSE client"
+
+    assert evt is not None
+    assert evt.event_type == EventType.PUSH
+    assert evt.target == "fusuyfusuy/trackploy"
+    assert evt.branch == "feature/smee-events"
+
+
+def test_smee_client_parse_workflow_run_webhook():
+    from trackploy.sources.smee import SmeeClient
+    from trackploy.models import EventType, WorkflowStatus
+
+    client = SmeeClient("https://smee.io/test1234")
+    payload = {
+        "repository": {"full_name": "fusuycorp/boun-scrape"},
+        "workflow_run": {
+            "id": 888777,
+            "name": "CI / CD Pipeline",
+            "head_branch": "master",
+            "head_sha": "aabbccddee",
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-08-30T10:00:00Z",
+            "updated_at": "2026-08-30T10:01:30Z",
+            "html_url": "https://github.com/fusuycorp/boun-scrape/actions/runs/888777",
+            "run_number": 42,
+        },
+    }
+
+    commit, run, evt = client.parse_webhook_payload("workflow_run", payload)
+    assert commit is None
+    assert run is not None
+    assert run.id == "888777"
+    assert run.status == WorkflowStatus.COMPLETED
+    assert run.duration_seconds == 90
+
+    assert evt is not None
+    assert evt.event_type == EventType.ACTION_COMPLETED
+    assert evt.target == "fusuycorp/boun-scrape"
+    assert evt.duration_seconds == 90
+
+

@@ -9,9 +9,15 @@ from trackploy.models import ComposeApp, Deployment, DokployStatus
 class DokployClient:
     """Client for Dokploy REST API."""
 
+    name = "dokploy"
+
     def __init__(self, base_url: str = "https://dokploy.bogazici.app", api_key: str = ""):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+
+    def is_available(self) -> bool:
+        """True if Dokploy API key and base URL are configured."""
+        return bool(self.api_key and self.base_url)
 
     def _headers(self) -> dict[str, str]:
         headers = {

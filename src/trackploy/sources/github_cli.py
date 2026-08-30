@@ -17,6 +17,8 @@ from trackploy.models import (
 class GitHubCliClient:
     """Interacts with GitHub via the local `gh` CLI subprocess."""
 
+    name = "github_cli"
+
     def __init__(self, token: Optional[str] = None):
         self.token = token
         self._gh_path = shutil.which("gh")
@@ -78,6 +80,102 @@ class GitHubCliClient:
             return 1, "", f"gh command timed out after {timeout}s"
         except Exception as e:
             return 1, "", str(e)
+
+    async def get_authenticated_user(self) -> Optional[str]:
+        """Fetch current authenticated GitHub login username."""
+        code, out, _ = await self._run_command(["api", "user", "--jq", ".login"])
+        if code == 0 and out.strip():
+            return out.strip()
+        return None
+
+    async def get_user_orgs(self) -> list[str]:
+        """Fetch organizations the authenticated user belongs to."""
+        code, out, _ = await self._run_command(["api", "user/orgs", "--jq", ".[].login"])
+        if code == 0 and out.strip():
+            return [line.strip() for line in out.splitlines() if line.strip()]
+        return []
+
+    async def discover_active_repos(self, limit: int = 15) -> list[str]:
+        """Discover actively updated repositories sorted by latest push time."""
+        code, out, _ = await self._run_command(["api", f"user/repos?sort=pushed&per_page={limit}", "--jq", ".[].full_name"])
+        if code == 0 and out.strip():
+            return [line.strip() for line in out.splitlines() if line.strip()]
+        return []
+
+    async def get_global_events(
+        self,
+        user: Optional[str] = None,
+        orgs: Optional[list[str]] = None,
+        limit: int = 30,
+    ) -> list[CommitEvent]:
+        """Stream PushEvents from user and organization global activity streams."""
+        all_events: list[CommitEvent] = []
+        seen_shas: set[str] = set()
+
+        endpoints = []
+        if user:
+            endpoints.append(f"users/{user}/events?per_page={limit}")
+        if orgs:
+            for org in orgs:
+                endpoints.append(f"orgs/{org}/events?per_page={limit}")
+
+        for ep in endpoints:
+            code, out, _ = await self._run_command(["api", ep])
+            if code != 0 or not out.strip():
+                continue
+            try:
+                raw_events = json.loads(out)
+                for item in raw_events:
+                    if item.get("type") != "PushEvent":
+                        continue
+                    repo = item.get("repo", {}).get("name") or "unknown"
+                    payload = item.get("payload", {})
+                    ref = payload.get("ref", "")
+                    branch = ref.removeprefix("refs/heads/") if ref.startswith("refs/heads/") else (ref or "default")
+                    actor = item.get("actor", {}).get("login", "unknown")
+                    ts_str = item.get("created_at")
+                    ts = None
+                    if ts_str:
+                        try:
+                            ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                        except Exception:
+                            pass
+
+                    commits = payload.get("commits", [])
+                    if commits:
+                        for c in reversed(commits):
+                            sha = (c.get("sha") or "")[:7]
+                            if not sha or sha in seen_shas:
+                                continue
+                            seen_shas.add(sha)
+                            msg = (c.get("message") or "").split("\n")[0]
+                            author = c.get("author", {}).get("name") or actor
+                            all_events.append(CommitEvent(
+                                repo=repo,
+                                sha=sha,
+                                branch=branch,
+                                message=msg,
+                                author=author,
+                                timestamp=ts,
+                                url=f"https://github.com/{repo}/commit/{c.get('sha')}" if c.get("sha") else None,
+                            ))
+                    else:
+                        head_sha = (payload.get("head") or "")[:7]
+                        if head_sha and head_sha not in seen_shas:
+                            seen_shas.add(head_sha)
+                            all_events.append(CommitEvent(
+                                repo=repo,
+                                sha=head_sha,
+                                branch=branch,
+                                message=f"Push to {branch}",
+                                author=actor,
+                                timestamp=ts,
+                                url=f"https://github.com/{repo}/commit/{payload.get('head')}" if payload.get("head") else None,
+                            ))
+            except Exception:
+                pass
+
+        return all_events
 
     async def get_workflow_runs(self, repo: str, limit: int = 5) -> list[WorkflowRun]:
         """Fetch latest workflow runs for a repository."""
