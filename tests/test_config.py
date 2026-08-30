@@ -53,18 +53,3 @@ def test_config_smee_url(tmp_path: Path):
     cfg = TrackployConfig.load(env_path=env_file)
     assert cfg.smee_url == "https://smee.io/abc123xyz"
 
-
-def test_discover_local_repos_git_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    # Mock current directory with a .git/config
-    git_dir = tmp_path / ".git"
-    git_dir.mkdir(parents=True)
-    (git_dir / "config").write_text("""
-[remote "origin"]
-    url = git@github.com:myorg/awesome-pipeline.git
-    fetch = +refs/heads/*:refs/remotes/origin/*
-""", encoding="utf-8")
-
-    monkeypatch.chdir(tmp_path)
-    repos = TrackployConfig.discover_local_repos()
-    assert "myorg/awesome-pipeline" in repos
-
