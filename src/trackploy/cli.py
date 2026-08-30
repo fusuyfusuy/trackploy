@@ -94,17 +94,23 @@ def watch(config: TrackployConfig):
         enable_desktop=config.enable_desktop_notifications,
     )
 
-    smee_info = f"[dim]Smee Webhook:[/dim] [green]{config.smee_url}[/green]\n" if config.smee_url else ""
-    console.print(Panel.fit(
-        f"[bold bright_white]Trackploy Continuous Monitor[/bold bright_white]\n"
-        f"[dim]Dokploy URL:[/dim] [cyan]{config.dokploy_url}[/cyan]\n"
-        f"{smee_info}"
-        f"[dim]Tracked Repos ({len(config.tracked_repos)}):[/dim] {', '.join(config.tracked_repos[:4])}{'...' if len(config.tracked_repos) > 4 else ''}\n"
-        f"[dim]Intervals:[/dim] Active: {config.active_interval_seconds}s | Idle: {config.idle_interval_seconds}s\n"
-        f"[dim]OSC Notifications:[/dim] {'Enabled' if config.enable_osc_notifications else 'Disabled'} | [dim]Bell:[/dim] {'Enabled' if config.enable_bell else 'Disabled'}\n"
+    infra_items = [
+        "[bold bright_white]Trackploy Continuous Monitor[/bold bright_white]",
+        f"[dim]CI/CD Stream:[/dim] [cyan]GitHub (Pushes, CI/CD Workflows, Global Feeds)[/cyan]",
+        f"[dim]Deployment Platform:[/dim] [cyan]Dokploy ({config.dokploy_url})[/cyan]" if config.dokploy_url else "[dim]Deployment Platform:[/dim] [dim]None[/dim]",
+    ]
+    if config.smee_url:
+        infra_items.append(f"[dim]Webhook Gateway:[/dim] [green]Smee.io SSE ({config.smee_url})[/green]")
+    else:
+        infra_items.append(f"[dim]Event Ingestion:[/dim] [green]Adaptive Global Stream + Zero-Config Discovery[/green]")
+
+    infra_items.extend([
+        f"[dim]Cadence:[/dim] Active: {config.active_interval_seconds:g}s | Idle: {config.idle_interval_seconds:g}s",
+        f"[dim]Notifications:[/dim] OSC Desktop: {'[green]Enabled[/green]' if config.enable_osc_notifications else '[dim]Disabled[/dim]'} | Bell: {'[green]Enabled[/green]' if config.enable_bell else '[dim]Disabled[/dim]'}",
         f"[dim italic]Press Ctrl+C to exit.[/dim italic]",
-        border_style="cyan",
-    ))
+    ])
+
+    console.print(Panel.fit("\n".join(infra_items), border_style="cyan"))
 
     async def _runner():
         # First poll to initialize and render baseline snapshot
