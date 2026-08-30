@@ -2,6 +2,10 @@
 
 > Continuous shell monitor and notifier for GitHub Actions CI/CD, Git pushes, and Dokploy Swarm deployments.
 
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Stream](https://img.shields.io/badge/event_stream-SSE%200ms-purple.svg)](https://smee.io/)
+
 `trackploy` bridges the gap between your local terminal, GitHub Actions workflows, real-time Smee webhooks, and self-hosted Dokploy Docker Swarm infrastructure into one continuous, unified pipeline tracker:
 
 $$\text{Git Push} \longrightarrow \text{GitHub Actions CI} \longrightarrow \text{Dokploy Redeploy Nudge} \longrightarrow \text{Swarm Deployment}$$
